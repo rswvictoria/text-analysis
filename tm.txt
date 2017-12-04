@@ -1,0 +1,122 @@
+rm(list=ls())
+library(tm)
+
+###########################################
+##########   1. Building Corpus   #########
+###########################################
+
+
+# Method 1: VectorSource
+sentence <- c("social media is a new media", "social media is fun")
+docs <- Corpus(VectorSource(sentence))
+writeCorpus(docs)
+
+# Method 2: DataframeSource
+movietweets <- read.csv("~/data/movietweets.csv", header=FALSE, sep=',', quote='"')
+docs <- Corpus(DataframeSource(as.matrix(movietweets[,2])))
+
+# Method 3: DirSource
+docs<-Corpus(DirSource( "~/data/pediatrician" ))
+
+
+###########################################
+##########   2. Managing Corpus   #########
+###########################################
+
+# understanding the structure of a document object
+mode(docs[[1]])
+length(docs[[1]])
+names(docs[[1]])
+
+docs[[1]]$content
+docs[[1]][[1]]
+
+mode(docs[[1]][[2]])
+length(docs[[1]][[2]])
+names(docs[[1]][[2]])
+docs[[1]][[2]]
+
+
+# transformations
+docs <- tm_map(docs, content_transformer(tolower))
+docs[[1]]$content
+
+docs <- tm_map(docs,removePunctuation)
+docs[[1]]$content
+
+docs <- tm_map(docs,removeWords,c("dr", "doctor"))
+docs[[1]]$content
+
+docs <- tm_map(docs,removeNumbers)
+docs[[1]]$content
+
+docs <- tm_map(docs,removeWords,stopwords("english"))
+docs[[1]]$content
+
+docs <- tm_map(docs,stripWhitespace)
+docs[[1]]$content
+
+docs<-tm_map(docs,stemDocument)
+docs[[1]]$content
+
+###########################################
+########   3. Document-Term Matrix  #######
+###########################################
+docs<-Corpus(DirSource( "~/data/ratemds" ))
+
+dtm <- DocumentTermMatrix(docs, control=list(tolower=T, removePunctuation=T, removeNumbers=T, stripWhitespace=T, stopwords=stopwords("english")))
+inspect(dtm[1:10,1:8])
+
+dtm <- removeSparseTerms(dtm,0.999)
+inspect(dtm[1:10,1:8])
+
+findFreqTerms(dtm, lowfreq=100)
+findAssocs(dtm, "staff", corlimit=0.1)
+
+freq = colSums( as.matrix(dtm) )
+freq.sorted = sort( freq, decreasing=TRUE )
+freq.sorted[1:10]
+
+Zipf_plot(dtm)
+
+mydic <- c("recommend", "time", "wait", "wonder")
+mydtm <- DocumentTermMatrix(docs, list(dictionary=mydic))
+inspect(mydtm[1:10,])
+
+
+# Wordcloud
+
+library(wordcloud)
+#set.seed(123)
+wordcloud(names(freq), freq, min.freq=1000)
+
+wordcloud(names(freq), freq, max.words=30)
+wordcloud(names(freq.sorted), freq.sorted, max.words=30)
+
+wordcloud(names(freq), freq, max.words=30, colors=brewer.pal(6,"Dark2"))
+
+
+# Term Frequency - Inverse Document Frequency (TF-IDF)
+
+setwd( file.path("~/data", "ratemds") )
+dir(getwd())
+docs<-Corpus(DirSource( getwd() ))
+
+docs <- tm_map(docs, content_transformer(tolower))
+docs<-tm_map(docs,removeWords,c("dr", "doctor", "patient"))
+docs<-tm_map(docs,removePunctuation)
+docs<-tm_map(docs,removeNumbers)
+docs<-tm_map(docs,removeWords,stopwords("english"))
+docs<-tm_map(docs,stripWhitespace)
+
+
+specialty <- 4
+
+dtm <- DocumentTermMatrix(docs)
+freq <- as.matrix(dtm)[specialty,]
+wordcloud(names(freq), freq, max.words=100, colors=brewer.pal(6,"Dark2"))
+
+dtm <- DocumentTermMatrix(docs, control=list(weighting=weightTfIdf))
+freq <- as.matrix(dtm)[specialty,]
+wordcloud(names(freq), freq, max.words=100, colors=brewer.pal(6,"Dark2"))
+
